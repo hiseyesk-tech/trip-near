@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>내 근처 찾기</title>
+<style>
+:root{--bg:#FBF7EE;--card:#fff;--ink:#1d2433;--muted:#6b6f78;--accent:#1F3A60;--line:#e8e1d0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+header{position:sticky;top:0;background:var(--bg);padding:14px 16px 8px;border-bottom:1px solid var(--line);z-index:2}
+h1{font-size:20px;margin:0 0 4px}#st{font-size:13px;color:var(--muted)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px}.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:15px}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+main{padding:10px 16px 40px}.row{background:var(--card);border-radius:14px;padding:12px 14px;margin:0 0 10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.nm{font-weight:700;font-size:16px}.d{color:var(--accent);font-weight:700;font-size:14px;margin:2px 0}.m{color:var(--muted);font-size:13px}
+.ja{display:inline-block;color:var(--ink);font-family:inherit;margin-top:6px;font-size:14px;border:1px dashed var(--line);border-radius:8px;padding:4px 8px;background:#fffdf7}
+.go{display:inline-block;margin:8px 8px 0 0;padding:7px 12px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:700}
+.pay{font-size:12px;border-radius:6px;padding:1px 6px;margin-left:6px;background:#eef2f8;color:var(--accent);font-weight:700}
+.btn{display:block;width:100%;margin:10px 0;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:700}
+</style></head><body>
+<header><h1>📍 내 근처 가이드북 장소</h1><div id="st">위치를 찾는 중…</div><div class="chips" id="chips"></div></header>
+<main id="list"></main>
+<script>
+const PAYL={cash:'💴 현금만',mixed:'💴 현금 준비',card:'💳 카드 OK',free:'🆓 무료',check:'❓ 결제 확인'};
+const CATS=[['전체',null],['식사',['식사']],['구경',['풍경','구경']],['쇼핑',['쇼핑']],['쉬기',['휴식','온천·쉬기']]];
+let P=[],me=null,cat='전체';
+function b64(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
+try{const h=location.hash.slice(1);if(h){P=JSON.parse(b64(h)).map(x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6]}));try{localStorage.setItem('nearP',h)}catch(e){}}
+ else{const s=localStorage.getItem('nearP');if(s)P=JSON.parse(b64(s)).map(x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6]}))}}catch(e){}
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function km(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);return 12742*Math.asin(Math.sqrt(x*x+Math.cos(a*r)*Math.cos(c*r)*y*y))}
+function tm(k){const w=Math.round(k*1300/80);if(w<=20)return(k<1?Math.round(k*100)*10+'m':k.toFixed(1)+'km')+' · 걸어서 약 '+Math.max(1,w)+'분';return(k<10?k.toFixed(1):Math.round(k))+'km · 차로 약 '+Math.round(k*1.4/40*60+3)+'분'}
+function draw(){if(!P.length){document.getElementById('list').innerHTML='<p>장소 목록이 없어요. 일정 HTML의 📍 버튼으로 다시 열어 주세요.</p>';return}
+ if(!me)return;const cs=(CATS.find(x=>x[0]===cat)||CATS[0])[1];
+ const all=P.map(p=>Object.assign({k:km(me.la,me.lo,p.la,p.lo)},p)).sort((a,b)=>a.k-b.k);const near=all.filter(x=>x.k<=30);
+ document.getElementById('chips').innerHTML=near.length?CATS.map(([c,cc])=>{const n=cc?near.filter(x=>cc.includes(x.c)).length:near.length;return n||!cc?'<button class="chip'+(c===cat?' on':'')+'" data-c="'+c+'">'+c+' '+n+'</button>':''}).join(''):'';
+ const sh=(cs?near.filter(x=>cs.includes(x.c)):near).slice(0,40);
+ document.getElementById('list').innerHTML=(near.length?'':'<p>30km 안에 가이드북 장소가 없어요 (가장 가까운 곳 '+Math.round(all[0].k)+'km). 가고시마에서 다시 눌러 보세요.</p>')+
+ sh.map(x=>'<div class="row"><div class="nm">'+esc(x.n)+(PAYL[x.p]?'<span class="pay">'+PAYL[x.p]+'</span>':'')+'</div><div class="d">'+tm(x.k)+'</div>'+(x.m?'<div class="m">'+esc(x.m)+'</div>':'')+
+ (x.ja?'<button class="ja" data-cp="'+esc(x.ja)+'">📋 '+esc(x.ja)+'</button><br>':'')+'<a class="go" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+x.la+','+x.lo+'&travelmode='+(x.k<1.6?'walking':'driving')+'">🧭 길찾기</a></div>').join('')}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;draw()}if(e.target.id==='again')locate();const q=e.target.closest('[data-cp]');if(q){const v=q.dataset.cp;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{q.textContent='✅ 복사됨';setTimeout(()=>q.textContent='📋 '+v,1200)}).catch(()=>{})}});
+function locate(){const st=document.getElementById('st');st.textContent='위치를 찾는 중…';
+ if(!navigator.geolocation){st.textContent='이 브라우저는 위치를 못 써요';return}
+ navigator.geolocation.getCurrentPosition(p=>{me={la:p.coords.latitude,lo:p.coords.longitude};st.innerHTML='내 위치 기준 · 직선거리로 어림 <button class="chip" id="again">🔄 다시</button>';draw()},
+ e=>{st.innerHTML='위치를 못 받았어요('+e.code+'). 크롬 주소창 왼쪽 자물쇠 → 위치 허용 후 <button class="chip" id="again">🔄 다시</button>'},{enableHighAccuracy:true,timeout:15000,maximumAge:30000})}
+draw();locate();
+</script></body></html>
