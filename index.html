@@ -13,6 +13,7 @@ main{padding:10px 16px 40px}.row{background:var(--card);border-radius:14px;paddi
 .ja{display:inline-block;color:var(--ink);font-family:inherit;margin-top:6px;font-size:14px;border:1px dashed var(--line);border-radius:8px;padding:4px 8px;background:#fffdf7}
 .go{display:inline-block;margin:8px 8px 0 0;padding:7px 12px;border-radius:10px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:700}
 .pay{font-size:12px;border-radius:6px;padding:1px 6px;margin-left:6px;background:#eef2f8;color:var(--accent);font-weight:700}
+.hd{display:block;width:100%;text-align:left;background:none;border:0;padding:0;font:inherit;color:inherit}.more{font-size:13px;color:var(--accent);margin-top:4px;font-weight:700}.det{margin:8px 0 2px;padding-top:8px;border-top:1px dashed var(--line);font-size:14.5px}.det p{margin:0 0 8px}.why{font-weight:600}.tip{background:#fff7e0;border-radius:8px;padding:6px 8px}.lk{display:inline-block;margin:4px 12px 4px 0;color:var(--accent);font-weight:700;font-size:14px}.row.op{outline:2px solid var(--accent)}
 .btn{display:block;width:100%;margin:10px 0;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:16px;font-weight:700}
 </style></head><body>
 <header><h1>📍 내 근처 가이드북 장소</h1><div id="st">위치를 찾는 중…</div><div class="chips" id="chips"></div></header>
@@ -21,9 +22,12 @@ main{padding:10px 16px 40px}.row{background:var(--card);border-radius:14px;paddi
 const PAYL={cash:'💴 현금만',mixed:'💴 현금 준비',card:'💳 카드 OK',free:'🆓 무료',check:'❓ 결제 확인'};
 const CATS=[['전체',null],['식사',['식사']],['구경',['풍경','구경']],['쇼핑',['쇼핑']],['쉬기',['휴식','온천·쉬기']]];
 let P=[],me=null,cat='전체';
-function b64(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)}
-try{const h=location.hash.slice(1);if(h){P=JSON.parse(b64(h)).map(x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6]}));try{localStorage.setItem('nearP',h)}catch(e){}}
- else{const s=localStorage.getItem('nearP');if(s)P=JSON.parse(b64(s)).map(x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6]}))}}catch(e){}
+function bytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
+async function dec(h){if(h[0]==='z'){const st=new Blob([bytes(h.slice(1))]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(st).text())}return JSON.parse(new TextDecoder().decode(bytes(h)))}
+const mapP=x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6],why:x[7],note:x[8],menu:x[9],addr:x[10],payt:x[11],off:x[12],blog:x[13],area:x[14],tips:x[15]});
+let open1=null;
+async function load(){let h=location.hash.slice(1);if(h){try{localStorage.setItem('nearP',h)}catch(e){}}else{try{h=localStorage.getItem('nearP')||''}catch(e){}}
+ if(h){try{P=(await dec(h)).map(mapP)}catch(e){}}}
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function km(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);return 12742*Math.asin(Math.sqrt(x*x+Math.cos(a*r)*Math.cos(c*r)*y*y))}
 function tm(k){const w=Math.round(k*1300/80);if(w<=20)return(k<1?Math.round(k*100)*10+'m':k.toFixed(1)+'km')+' · 걸어서 약 '+Math.max(1,w)+'분';return(k<10?k.toFixed(1):Math.round(k))+'km · 차로 약 '+Math.round(k*1.4/40*60+3)+'분'}
@@ -33,12 +37,14 @@ function draw(){if(!P.length){document.getElementById('list').innerHTML='<p>장�
  document.getElementById('chips').innerHTML=near.length?CATS.map(([c,cc])=>{const n=cc?near.filter(x=>cc.includes(x.c)).length:near.length;return n||!cc?'<button class="chip'+(c===cat?' on':'')+'" data-c="'+c+'">'+c+' '+n+'</button>':''}).join(''):'';
  const sh=(cs?near.filter(x=>cs.includes(x.c)):near).slice(0,40);
  document.getElementById('list').innerHTML=(near.length?'':'<p>30km 안에 가이드북 장소가 없어요 (가장 가까운 곳 '+Math.round(all[0].k)+'km). 가고시마에서 다시 눌러 보세요.</p>')+
- sh.map(x=>'<div class="row"><div class="nm">'+esc(x.n)+(PAYL[x.p]?'<span class="pay">'+PAYL[x.p]+'</span>':'')+'</div><div class="d">'+tm(x.k)+'</div>'+(x.m?'<div class="m">'+esc(x.m)+'</div>':'')+
- (x.ja?'<button class="ja" data-cp="'+esc(x.ja)+'">📋 '+esc(x.ja)+'</button><br>':'')+'<a class="go" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+x.la+','+x.lo+'&travelmode='+(x.k<1.6?'walking':'driving')+'">🧭 길찾기</a></div>').join('')}
-document.addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;draw()}if(e.target.id==='again')locate();const q=e.target.closest('[data-cp]');if(q){const v=q.dataset.cp;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{q.textContent='✅ 복사됨';setTimeout(()=>q.textContent='📋 '+v,1200)}).catch(()=>{})}});
+ sh.map((x,i)=>{const id=x.n,op=open1===id;const det=op?'<div class="det">'+(x.why?'<p class="why">'+esc(x.why)+'</p>':'')+(x.m?'<p><b>🕒</b> '+esc(x.m)+'</p>':'')+(x.payt?'<p><b>💳</b> '+esc(x.payt)+'</p>':'')+(x.menu?'<p><b>🍽</b> '+esc(x.menu)+'</p>':'')+(x.note&&x.note.replace(/참고 글[^.]*\.\s*/g,'').trim()?'<p>'+esc(x.note.replace(/참고 글[^.]*\.\s*/g,''))+'</p>':'')+(x.tips?'<p class="tip">💡 '+esc(x.tips).replace(/\n/g,'<br>💡 ')+'</p>':'')+(x.addr?'<button class="ja" data-cp="'+esc(x.addr)+'">📋 '+esc(x.addr)+'</button><br>':'')+
+  (x.off?'<a class="lk" target="_blank" rel="noopener" href="'+esc(x.off)+'">공식 정보 ↗</a>':'')+(x.blog?'<a class="lk" target="_blank" rel="noopener" href="'+esc(x.blog)+'">블로그 후기 ↗</a>':'')+'</div>':'';
+ return '<div class="row'+(op?' op':'')+'"><button class="hd" data-o="'+esc(id)+'"><div class="nm">'+esc(x.n)+(PAYL[x.p]?'<span class="pay">'+PAYL[x.p]+'</span>':'')+'</div><div class="d">'+tm(x.k)+(x.area?' · '+esc(x.area):'')+'</div>'+(!op&&x.m?'<div class="m">'+esc(String(x.m).slice(0,40))+'</div>':'')+'<div class="more">'+(op?'접기 ▲':(x.why||x.note?'가이드북 내용 보기 ▼':''))+'</div></button>'+det+
+ (x.ja?'<button class="ja" data-cp="'+esc(x.ja)+'">📋 '+esc(x.ja)+'</button><br>':'')+'<a class="go" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+x.la+','+x.lo+'&travelmode='+(x.k<1.6?'walking':'driving')+'">🧭 길찾기</a></div>'}).join('')}
+document.addEventListener('click',e=>{const o=e.target.closest('[data-o]');if(o){open1=open1===o.dataset.o?null:o.dataset.o;draw();return}const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;draw()}if(e.target.id==='again')locate();const q=e.target.closest('[data-cp]');if(q){const v=q.dataset.cp;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{q.textContent='✅ 복사됨';setTimeout(()=>q.textContent='📋 '+v,1200)}).catch(()=>{})}});
 function locate(){const st=document.getElementById('st');st.textContent='위치를 찾는 중…';
  if(!navigator.geolocation){st.textContent='이 브라우저는 위치를 못 써요';return}
  navigator.geolocation.getCurrentPosition(p=>{me={la:p.coords.latitude,lo:p.coords.longitude};st.innerHTML='내 위치 기준 · 직선거리로 어림 <button class="chip" id="again">🔄 다시</button>';draw()},
  e=>{st.innerHTML='위치를 못 받았어요('+e.code+'). 크롬 주소창 왼쪽 자물쇠 → 위치 허용 후 <button class="chip" id="again">🔄 다시</button>'},{enableHighAccuracy:true,timeout:15000,maximumAge:30000})}
-draw();locate();
+load().then(()=>{draw();locate()});
 </script></body></html>
