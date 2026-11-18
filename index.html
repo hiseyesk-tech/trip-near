@@ -21,26 +21,28 @@ main{padding:10px 16px 40px}.row{background:var(--card);border-radius:14px;paddi
 <script>
 const PAYL={cash:'💴 현금만',mixed:'💴 현금 준비',card:'💳 카드 OK',free:'🆓 무료',check:'❓ 결제 확인'};
 const CATS=[['전체',null],['식사',['식사']],['구경',['풍경','구경']],['쇼핑',['쇼핑']],['쉬기',['휴식','온천·쉬기']]];
-let P=[],me=null,cat='전체';
+let P=[],me=null,cat='전체',O={r:30,mode:'car'};
 function bytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
 async function dec(h){if(h[0]==='z'){const st=new Blob([bytes(h.slice(1))]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return JSON.parse(await new Response(st).text())}return JSON.parse(new TextDecoder().decode(bytes(h)))}
 const mapP=x=>({n:x[0],ja:x[1],c:x[2],p:x[3],la:x[4]/1e5,lo:x[5]/1e5,m:x[6],why:x[7],note:x[8],menu:x[9],addr:x[10],payt:x[11],off:x[12],blog:x[13],area:x[14],tips:x[15]});
 let open1=null;
 async function load(){let h=location.hash.slice(1);if(h){try{localStorage.setItem('nearP',h)}catch(e){}}else{try{h=localStorage.getItem('nearP')||''}catch(e){}}
- if(h){try{P=(await dec(h)).map(mapP)}catch(e){}}}
+ if(h){try{let d=await dec(h);if(!Array.isArray(d)){O=Object.assign(O,d.o||{});d=d.p||[]}P=d.map(mapP)}catch(e){}}
+ if(O.bg)document.documentElement.style.setProperty('--bg',O.bg);if(O.accent)document.documentElement.style.setProperty('--accent',O.accent);if(O.title)document.title=O.title}
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function km(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);return 12742*Math.asin(Math.sqrt(x*x+Math.cos(a*r)*Math.cos(c*r)*y*y))}
-function tm(k){const w=Math.round(k*1300/80);if(w<=20)return(k<1?Math.round(k*100)*10+'m':k.toFixed(1)+'km')+' · 걸어서 약 '+Math.max(1,w)+'분';return(k<10?k.toFixed(1):Math.round(k))+'km · 차로 약 '+Math.round(k*1.4/40*60+3)+'분'}
+function tm(k){const w=Math.round(k*1300/80);if(w<=20)return(k<1?Math.round(k*100)*10+'m':k.toFixed(1)+'km')+' · 걸어서 약 '+Math.max(1,w)+'분';return(k<10?k.toFixed(1):Math.round(k))+'km · '+(O.mode==='car'?'차로':'차·택시로')+' 약 '+Math.round(k*1.4/40*60+3)+'분'}
 function draw(){if(!P.length){document.getElementById('list').innerHTML='<p>장소 목록이 없어요. 일정 HTML의 📍 버튼으로 다시 열어 주세요.</p>';return}
- if(!me)return;const cs=(CATS.find(x=>x[0]===cat)||CATS[0])[1];
- const all=P.map(p=>Object.assign({k:km(me.la,me.lo,p.la,p.lo)},p)).sort((a,b)=>a.k-b.k);const near=all.filter(x=>x.k<=30);
- document.getElementById('chips').innerHTML=near.length?CATS.map(([c,cc])=>{const n=cc?near.filter(x=>cc.includes(x.c)).length:near.length;return n||!cc?'<button class="chip'+(c===cat?' on':'')+'" data-c="'+c+'">'+c+' '+n+'</button>':''}).join(''):'';
+ if(!me)return;const cs=cat==='전체'?null:[cat].concat((CATS.find(x=>x[0]===cat)||[0,[]])[1]||[]);
+ const all=P.map(p=>Object.assign({k:km(me.la,me.lo,p.la,p.lo)},p)).sort((a,b)=>a.k-b.k);const near=all.filter(x=>x.k<=O.r);
+ const known=CATS.flatMap(x=>x[1]||[]),extra=[...new Set(near.map(x=>x.c).filter(c=>c&&!known.includes(c)&&c!=='교통'&&c!=='숙소'))],CS=CATS.concat(extra.map(c=>[c,[c]]));
+ document.getElementById('chips').innerHTML=near.length?CS.map(([c,cc])=>{const n=cc?near.filter(x=>cc.includes(x.c)).length:near.length;return n||!cc?'<button class="chip'+(c===cat?' on':'')+'" data-c="'+c+'">'+c+' '+n+'</button>':''}).join(''):'';
  const sh=(cs?near.filter(x=>cs.includes(x.c)):near).slice(0,40);
- document.getElementById('list').innerHTML=(near.length?'':'<p>30km 안에 가이드북 장소가 없어요 (가장 가까운 곳 '+Math.round(all[0].k)+'km). 가고시마에서 다시 눌러 보세요.</p>')+
+ document.getElementById('list').innerHTML=(near.length?'':'<p>'+O.r+'km 안에 가이드북 장소가 없어요 (가장 가까운 곳 '+Math.round(all[0].k)+'km). 여행지에 도착해서 다시 눌러 보세요.</p>')+
  sh.map((x,i)=>{const id=x.n,op=open1===id;const det=op?'<div class="det">'+(x.why?'<p class="why">'+esc(x.why)+'</p>':'')+(x.m?'<p><b>🕒</b> '+esc(x.m)+'</p>':'')+(x.payt?'<p><b>💳</b> '+esc(x.payt)+'</p>':'')+(x.menu?'<p><b>🍽</b> '+esc(x.menu)+'</p>':'')+(x.note&&x.note.replace(/참고 글[^.]*\.\s*/g,'').trim()?'<p>'+esc(x.note.replace(/참고 글[^.]*\.\s*/g,''))+'</p>':'')+(x.tips?'<p class="tip">💡 '+esc(x.tips).replace(/\n/g,'<br>💡 ')+'</p>':'')+(x.addr?'<button class="ja" data-cp="'+esc(x.addr)+'">📋 '+esc(x.addr)+'</button><br>':'')+
   (x.off?'<a class="lk" target="_blank" rel="noopener" href="'+esc(x.off)+'">공식 정보 ↗</a>':'')+(x.blog?'<a class="lk" target="_blank" rel="noopener" href="'+esc(x.blog)+'">블로그 후기 ↗</a>':'')+'</div>':'';
  return '<div class="row'+(op?' op':'')+'"><button class="hd" data-o="'+esc(id)+'"><div class="nm">'+esc(x.n)+(PAYL[x.p]?'<span class="pay">'+PAYL[x.p]+'</span>':'')+'</div><div class="d">'+tm(x.k)+(x.area?' · '+esc(x.area):'')+'</div>'+(!op&&x.m?'<div class="m">'+esc(String(x.m).slice(0,40))+'</div>':'')+'<div class="more">'+(op?'접기 ▲':(x.why||x.note?'가이드북 내용 보기 ▼':''))+'</div></button>'+det+
- (x.ja?'<button class="ja" data-cp="'+esc(x.ja)+'">📋 '+esc(x.ja)+'</button><br>':'')+'<a class="go" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+x.la+','+x.lo+'&travelmode='+(x.k<1.6?'walking':'driving')+'">🧭 길찾기</a></div>'}).join('')}
+ (x.ja?'<button class="ja" data-cp="'+esc(x.ja)+'">📋 '+esc(x.ja)+'</button><br>':'')+'<a class="go" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+x.la+','+x.lo+'&travelmode='+(x.k<1.6?'walking':(O.mode==='car'?'driving':'transit'))+'">🧭 길찾기</a></div>'}).join('')}
 document.addEventListener('click',e=>{const o=e.target.closest('[data-o]');if(o){open1=open1===o.dataset.o?null:o.dataset.o;draw();return}const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;draw()}if(e.target.id==='again')locate();const q=e.target.closest('[data-cp]');if(q){const v=q.dataset.cp;(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(()=>{q.textContent='✅ 복사됨';setTimeout(()=>q.textContent='📋 '+v,1200)}).catch(()=>{})}});
 function locate(){const st=document.getElementById('st');st.textContent='위치를 찾는 중…';
  if(!navigator.geolocation){st.textContent='이 브라우저는 위치를 못 써요';return}
